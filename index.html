@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>JAPAN COMMAND CENTER</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --bg: #050505;
+            --panel: #121214;
+            --border: #242426;
+            --accent: #32D74B; 
+            --info: #0A84FF;
+            --warn: #FF9F0A;
+            --text: #FFFFFF;
+            --text-dim: #8E8E93;
+            --card-hover: #1C1C1E;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, "Inter", "Segoe UI", "Hiragino Sans", sans-serif;
+            padding: 24px;
+            line-height: 1.5;
+        }
+
+        /* 响应式容器 */
+        .container { max-width: 1400px; margin: 0 auto; }
+
+        /* 顶部状态栏 */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .header h1 { font-size: 24px; font-weight: 800; letter-spacing: -1px; }
+        .header h1 span { color: var(--info); }
+        
+        .time-group { display: flex; gap: 30px; align-items: center; }
+        #jstClock { font-family: monospace; font-size: 28px; font-weight: 700; color: var(--accent); }
+        #jstDate { font-size: 13px; color: var(--text-dim); text-align: right; }
+
+        /* 社交决策矩阵 - 自适应网格 */
+        .section-title { font-size: 12px; font-weight: 700; color: var(--text-dim); margin-bottom: 15px; text-transform: uppercase; letter-spacing: 2px; }
+        
+        .decision-matrix {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+            margin-bottom: 35px;
+        }
+        .decision-card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 20px;
+            transition: 0.3s cubic-bezier(0.2, 0, 0, 1);
+        }
+        .decision-card:hover { border-color: var(--info); background: var(--card-hover); }
+        .card-tag { font-size: 10px; font-weight: 800; color: var(--info); margin-bottom: 12px; display: block; opacity: 0.8; }
+        .card-content { font-size: 14px; color: #E5E5E7; font-weight: 500; min-height: 45px; }
+
+        /* 主布局：左侧天气，右侧活动 */
+        .main-layout {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 900px) {
+            .main-layout { grid-template-columns: 1fr; }
+            body { padding: 16px; }
+        }
+
+        /* 气象面板 */
+        .city-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+        .city-card {
+            background: var(--panel); border: 1px solid var(--border); border-radius: 20px;
+            padding: 18px; transition: 0.2s;
+        }
+        .city-name { font-size: 13px; font-weight: 700; color: var(--text-dim); margin-bottom: 12px; }
+        .temp-row { display: flex; align-items: baseline; gap: 5px; }
+        .temp-val { font-size: 32px; font-weight: 300; }
+        .weather-badge { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 6px; margin-top: 8px; display: inline-block; }
+
+        /* 活动日历面板 */
+        .event-list { background: var(--panel); border: 1px solid var(--border); border-radius: 20px; padding: 20px; }
+        .event-item { 
+            padding: 12px 0; border-bottom: 1px solid var(--border); 
+            display: flex; gap: 15px; align-items: flex-start;
+        }
+        .event-item:last-child { border: none; }
+        .ev-date { font-size: 11px; font-weight: 800; color: var(--warn); white-space: nowrap; margin-top: 2px; }
+        .ev-info { font-size: 13px; font-weight: 600; }
+        .ev-loc { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+        /* 趋势标签 */
+        .up { background: rgba(255, 69, 58, 0.15); color: #FF453A; }
+        .down { background: rgba(10, 132, 255, 0.15); color: #0A84FF; }
+        .stable { background: rgba(50, 215, 75, 0.15); color: #32D74B; }
+
+        summary { cursor: pointer; padding: 15px; color: var(--info); font-size: 13px; font-weight: 600; text-align: center; list-style: none; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header class="header">
+            <h1>JP <span>INSIGHT</span></h1>
+            <div class="time-group">
+                <div id="jstClock">00:00:00</div>
+                <div id="jstDate">JAN 07 WED / TOKYO</div>
+            </div>
+        </header>
+
+        <div class="section-title">社交决策矩阵 · 四维建议</div>
+        <div class="decision-matrix">
+            <div class="decision-card">
+                <span class="card-tag">时令话题 / SEASONAL</span>
+                <div class="card-content" id="topicSeason">正在获取当前民俗话题...</div>
+            </div>
+            <div class="decision-card">
+                <span class="card-tag">长假预判 / HOLIDAY</span>
+                <div class="card-content" id="topicHoliday">分析近期连休计划中...</div>
+            </div>
+            <div class="decision-card">
+                <span class="card-tag">气象关心 / CLIMATE</span>
+                <div class="card-content" id="topicWeather">根据实时温差生成建议...</div>
+            </div>
+            <div class="decision-card">
+                <span class="card-tag">社交窗口 / WINDOW</span>
+                <div class="card-content" id="topicWindow">计算对方当前社交活跃度...</div>
+            </div>
+        </div>
+
+        <div class="main-layout">
+            <div>
+                <div class="section-title">主要都市气象 · 实况及预测</div>
+                <div class="city-grid" id="mainCities"></div>
+                <details>
+                    <summary>查看次要都市情况</summary>
+                    <div class="city-grid" id="subCities" style="margin-top:10px;"></div>
+                </details>
+            </div>
+
+            <div>
+                <div class="section-title">近期活动 / 节日动态</div>
+                <div class="event-list" id="eventBox">
+                    </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.ready();
+
+        const cities = {
+            main: [
+                { name: "东京 (Tokyo)", lat: 35.69, lon: 139.69 },
+                { name: "大阪 (Osaka)", lat: 34.69, lon: 135.50 },
+                { name: "京都 (Kyoto)", lat: 35.01, lon: 135.76 },
+                { name: "札幌 (Sapporo)", lat: 43.06, lon: 141.35 }
+            ],
+            sub: [
+                { name: "福冈", lat: 33.59, lon: 130.40 },
+                { name: "名古屋", lat: 35.18, lon: 136.90 },
+                { name: "横滨", lat: 35.44, lon: 139.63 },
+                { name: "冲绳", lat: 26.21, lon: 127.68 }
+            ]
+        };
+
+        const eventData = [
+            { date: "01/07", name: "七草节 (Nanakusa)", loc: "全日本 / 传统习俗" },
+            { date: "01/09", name: "十日戎 (Tokka Ebisu)", loc: "大阪今宫戎神社 / 祭典" },
+            { date: "01/12", name: "成人之日 (Coming of Age Day)", loc: "全国公休日 / 三连休" },
+            { date: "01/15", name: "世田谷旧货市", loc: "东京 / 400年历史大集" },
+            { date: "01/25", name: "初天神", loc: "全日本天满宫 / 祭典" }
+        ];
+
+        async function updateWeather(list, containerId) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            for (const city of list) {
+                try {
+                    const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&current=temperature_2m,precipitation&hourly=temperature_2m&timezone=Asia%2FTokyo&forecast_days=1`);
+                    const data = await res.json();
+                    const curTemp = Math.round(data.current.temperature_2m);
+                    const nextTemp = Math.round(data.hourly.temperature_2m[new Date().getHours() + 1] || curTemp);
+                    const isRain = data.current.precipitation > 0;
+
+                    let badge = "气温平稳"; let cls = "stable";
+                    if (isRain) { badge = "正在降雨 🌧️"; cls = "down"; }
+                    else if (nextTemp > curTemp + 1) { badge = "预测升温 ↑"; cls = "up"; }
+                    else if (nextTemp < curTemp - 1) { badge = "预测降温 ↓"; cls = "down"; }
+
+                    const card = document.createElement('div');
+                    card.className = 'city-card';
+                    card.innerHTML = `<div class="city-name">${city.name}</div><div class="temp-row"><span class="temp-val">${curTemp}°</span></div><div class="weather-badge ${cls}">${badge}</div>`;
+                    container.appendChild(card);
+                } catch (e) {}
+            }
+        }
+
+        function updateDecision() {
+            const now = new Date();
+            const jst = new Date(now.getTime() + (now.getTimezoneOffset() + 540) * 60000);
+            const hour = jst.getHours();
+            const md = (jst.getMonth() + 1) + "-" + jst.getDate();
+
+            // 话题1: 时令
+            document.getElementById('topicSeason').innerText = md === "1-7" ? "今日是七草节，日本习俗是喝七草粥清理肠胃祈求健康，很适合作为今日切入点。" : "目前处于新年后的恢复期，适合聊聊新年的计划或假期期间去哪里游玩。";
+            
+            // 话题2: 长假
+            document.getElementById('topicHoliday').innerText = "本周六到下周一是‘成人之日’带来的三连休。建议在周五前确认对方的假期安排，此时不宜聊复杂工作。";
+
+            // 话题3: 气候 (简易逻辑，实际可根据东京气象动态)
+            document.getElementById('topicWeather').innerText = "东京今日早晚温差较大。如果对方在东京，下午18点后建议提醒对方注意防寒保暖，增加亲近感。";
+
+            // 话题4: 社交窗口
+            let windowAdvice = "";
+            if (hour >= 23 || hour < 7) windowAdvice = "当前为深夜。对方已休息，不建议发送任何社交请求或非紧急工作。";
+            else if (hour >= 12 && hour < 13) windowAdvice = "午休时间。适合发送非正式的问候、约饭或分享有趣的新闻。";
+            else if (hour >= 18 && hour < 21) windowAdvice = "晚间活跃期。对方多在居酒屋或家中，回复率最高，适合进行深度沟通。";
+            else windowAdvice = "工作繁忙期。建议言简意赅，如果是业务咨询，对方可能在17点后才会统一回复。";
+            document.getElementById('topicWindow').innerText = windowAdvice;
+        }
+
+        function init() {
+            // 填充活动
+            const evBox = document.getElementById('eventBox');
+            eventData.forEach(ev => {
+                const item = document.createElement('div');
+                item.className = 'event-item';
+                item.innerHTML = `<div class="ev-date">${ev.date}</div><div><div class="ev-info">${ev.name}</div><div class="ev-loc">${ev.loc}</div></div>`;
+                evBox.appendChild(item);
+            });
+
+            // 时钟
+            setInterval(() => {
+                const now = new Date();
+                const jst = new Date(now.getTime() + (now.getTimezoneOffset() + 540) * 60000);
+                document.getElementById('jstClock').innerText = jst.toTimeString().split(' ')[0];
+                document.getElementById('jstDate').innerText = jst.toLocaleDateString('en-US', {month:'short', day:'2-digit', weekday:'short'}).toUpperCase() + " / TOKYO JST";
+            }, 1000);
+
+            updateDecision();
+            updateWeather(cities.main, 'mainCities');
+            updateWeather(cities.sub, 'subCities');
+        }
+
+        init();
+    </script>
+</body>
+</html>
